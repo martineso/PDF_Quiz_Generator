@@ -81,42 +81,25 @@ class qformat_xhtml extends qformat_default {
                 $expout .= "  <li>{$sttrue}</li>";
                 $expout .= "  <li>{$stfalse}</li>";
                 $expout .= "</ul>";
-                /*$sttrue = get_string('true', 'qtype_truefalse');
-                $stfalse = get_string('false', 'qtype_truefalse');
-                $expout .= "<ul class=\"truefalse\">\n";
-                $expout .= "  <li><input name=\"quest_{$id}\" type=\"radio\" value=\"{$sttrue}\" />{$sttrue}</li>\n";
-                $expout .= "  <li><input name=\"quest_{$id}\" type=\"radio\" value=\"{$stfalse}\" />{$stfalse}</li>\n";
-                $expout .= "</ul>\n";*/
                 break;
             case 'multichoice':
-                $expout .= "<ul class=\"multichoice\">\n";
+                // ordered list with upper case letters for indexing
+                $expout .= "<ol class=\"multichoice\">\n";
                 foreach ($question->options->answers as $answer) {
                     $answertext = $this->repchar( $answer->answer );
                     if ($question->options->single) {
-                        $expout .= "  <li><input name=\"quest_{$id}\" type=\"radio\" value=\""
-                                . s($answertext) . "\" />{$answertext}</li>\n";
+                        $expout .= "  <li>{$answertext}</li>\n";
                     } else {
-                        $expout .= "  <li><input name=\"quest_{$id}\" type=\"checkbox\" value=\""
-                                . s($answertext) . "\" />{$answertext}</li>\n";
+                        $expout .= "  <li>{$answertext}</li>\n";
                     }
                 }
-                $expout .= "</ul>\n";
+                $expout .= "</ol>\n";
                 break;
             case 'shortanswer':
-                $expout .= html_writer::start_tag('ul', array('class' => 'shortanswer'));
-                $expout .= html_writer::start_tag('li');
-                $expout .= html_writer::label(get_string('answer'), 'quest_'.$id, false, array('class' => 'accesshide'));
-                $expout .= html_writer::empty_tag('input', array('id' => "quest_{$id}", 'name' => "quest_{$id}", 'type' => 'text'));
-                $expout .= html_writer::end_tag('li');
-                $expout .= html_writer::end_tag('ul');
+                $expout .= "<div class=\"answer-text-area\"></div>";
                 break;
             case 'numerical':
-                $expout .= html_writer::start_tag('ul', array('class' => 'numerical'));
-                $expout .= html_writer::start_tag('li');
-                $expout .= html_writer::label(get_string('answer'), 'quest_'.$id, false, array('class' => 'accesshide'));
-                $expout .= html_writer::empty_tag('input', array('id' => "quest_{$id}", 'name' => "quest_{$id}", 'type' => 'text'));
-                $expout .= html_writer::end_tag('li');
-                $expout .= html_writer::end_tag('ul');
+                $expout .= "<div class=\"answer-text-area\"></div>";
                 break;
             case 'match':
                 $expout .= html_writer::start_tag('ul', array('class' => 'match'));

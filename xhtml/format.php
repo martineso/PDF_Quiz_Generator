@@ -75,12 +75,18 @@ class qformat_xhtml extends qformat_default {
         // Selection depends on question type.
         switch($question->qtype) {
             case 'truefalse':
-                $sttrue = get_string('true', 'qtype_truefalse');
+            	$sttrue = get_string('true', 'qtype_truefalse');
+                $stfalse = get_string('false', 'qtype_truefalse');
+                $expout .= "<ul class=\"truefalse\">";
+                $expout .= "  <li>{$sttrue}</li>";
+                $expout .= "  <li>{$stfalse}</li>";
+                $expout .= "</ul>";
+                /*$sttrue = get_string('true', 'qtype_truefalse');
                 $stfalse = get_string('false', 'qtype_truefalse');
                 $expout .= "<ul class=\"truefalse\">\n";
                 $expout .= "  <li><input name=\"quest_{$id}\" type=\"radio\" value=\"{$sttrue}\" />{$sttrue}</li>\n";
                 $expout .= "  <li><input name=\"quest_{$id}\" type=\"radio\" value=\"{$stfalse}\" />{$stfalse}</li>\n";
-                $expout .= "</ul>\n";
+                $expout .= "</ul>\n";*/
                 break;
             case 'multichoice':
                 $expout .= "<ul class=\"multichoice\">\n";
@@ -157,51 +163,48 @@ class qformat_xhtml extends qformat_default {
     }
 
 
-    protected function presave_process($content) {
+    protected function presave_process($body) {
         // Override method to allow us to add xhtml headers and footers.
-
+		
         global $CFG;
 
         // Get css bit.
         $csslines = file( "{$CFG->dirroot}/question/format/xhtml/xhtml.css" );
-        $css = implode( ' ', $csslines );
-
-        $xp =  "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\"\n";
-        $xp .= "  \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n";
-        $xp .= "<html xmlns=\"http://www.w3.org/1999/xhtml\">\n";
-        $xp .= "<head>\n";
-        $xp .= "<meta http-equiv=\"content-type\" content=\"text/html; charset=UTF-8\" />\n";
+        $css = implode( ' ', $csslines);
+	
+        $xp =  "<!DOCTYPE html>";
+        $xp .= "<html>";
+        $xp .= "<head>";
+        $xp .= "<meta charset=\"UTF-8\">";
         $xp .= "<title>Moodle Quiz XHTML Export</title>\n";
-        $xp .= "<style type=\"text/css\">\n";
+        $xp .= "<style type=\"text/css\">";
         $xp .= $css;
-        $xp .= "</style>\n";
+        $xp .= "</style>";
         $xp .= "</head>\n";
         $xp .= "<body>\n";
-        $xp .= "<form action=\"...REPLACE ME...\" method=\"post\">\n\n";
-        $xp .= $content;
-        $xp .= "<p class=\"submit\">\n";
-        $xp .= "  <input type=\"submit\" />\n";
-        $xp .= "</p>\n";
+        $xp .= "<div>";
+        $xp .= $body;
+        $xp .= "</div>";
         $xp .= "</form>\n";
         $xp .= "</body>\n";
         $xp .= "</html>\n";
-        
-
 		
-        include $CFG->libdir . "/tcpdf/tcpdf.php";
-        
+        require_once $CFG->libdir . "/tcpdf/tcpdf.php";
+        $fontpath = $CFG->dirroot . "/question/format/xhtml/fonts/OpenSans-Regular.ttf";
+    
         $pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
         $pdf->SetMargins(PDF_MARGIN_LEFT, PDF_MARGIN_TOP, PDF_MARGIN_RIGHT);
 		// set auto page breaks
 		$pdf->SetAutoPageBreak(TRUE, PDF_MARGIN_BOTTOM);
 		// set image scale factor
 		$pdf->setImageScale(PDF_IMAGE_SCALE_RATIO);
-		$pdf->SetFont('times', 'BI', 20);
+		$fontname = TCPDF_FONTS::addTTFfont($fontpath, 'TrueTypeUnicode', '', 32);
+		$pdf->SetFont($fontname, '', 14, '', false);
 		// add a page
 		$pdf->AddPage();
 		$pdf->writeHTML($xp, true, false, true, false, '');
         
-		$file = $pdf->Output('example_002.pdf', 's');
+		$file = $pdf->Output('questions.pdf', 's');
 		
         return $file;
     }

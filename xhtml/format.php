@@ -68,6 +68,7 @@ class qformat_xhtml extends qformat_default {
         switch($question->qtype) {
             case 'truefalse':
             case 'shortanswer':
+            case 'numerical':
                 $this->write_question_name($question);
                 $expout .= $this->tab() . strip_tags($question->questiontext); // the text of the question
                 $expout .= "\n\n";
@@ -75,8 +76,6 @@ class qformat_xhtml extends qformat_default {
             case 'multichoice':
                 $this->write_question_name($question);
                 $expout .= $this->tab() . strip_tags($question->questiontext); // the text of the question
-                break;
-            case 'numerical':
                 break;
             case 'match':
                 break;
@@ -108,11 +107,12 @@ class qformat_xhtml extends qformat_default {
         // Selection depends on question type.
         switch($question->qtype) {
             case 'truefalse':
-                $expout .= $this->tab() . 'True' . $this->tab();
-                $expout .= $this->tab() . 'False';
+                $sttrue = get_string('true', 'qtype_truefalse');
+                $stfalse = get_string('false', 'qtype_truefalse');
+                $expout .= $this->tab() . $sttrue . $this->tab();
+                $expout .= $this->tab() . $stfalse;
                 $expout .= $this->gap_between_questions();
                 $this->pdf->Write(5, $expout, '', 0, 'L', true, 0, false, false, 0);
-
                 break;
             case 'multichoice':
                 $expout .= "<ol style=\"list-style-type:upper-alpha\" class=\"multichoice\">\n";
@@ -124,17 +124,10 @@ class qformat_xhtml extends qformat_default {
                 $this->pdf->WriteHTML($expout, false, false, true, false, '');
                 break;
             case 'shortanswer':
+            case 'numerical':
                 $expout .= $this->tab() . '_______________________________________________________________________________';
                 $expout .= $this->gap_between_questions();
                 $this->pdf->Write(5, $expout, '', 0, 'L', true, 0, false, false, 0);
-                break;
-            case 'numerical':
-                $expout .= html_writer::start_tag('ul', array('class' => 'numerical'));
-                $expout .= html_writer::start_tag('li');
-                $expout .= html_writer::label(get_string('answer'), 'quest_'.$id, false, array('class' => 'accesshide'));
-                $expout .= html_writer::empty_tag('input', array('id' => "quest_{$id}", 'name' => "quest_{$id}", 'type' => 'text'));
-                $expout .= html_writer::end_tag('li');
-                $expout .= html_writer::end_tag('ul');
                 break;
             case 'match':
                 $expout .= html_writer::start_tag('ul', array('class' => 'match'));

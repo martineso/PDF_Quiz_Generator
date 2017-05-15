@@ -74,10 +74,9 @@ class qformat_xhtml extends qformat_default {
                 $expout .= "\n\n";
                 break;
             case 'multichoice':
+            case 'match':
                 $this->write_question_name($question);
                 $expout .= $this->tab() . strip_tags($question->questiontext); // the text of the question
-                break;
-            case 'match':
                 break;
             case 'description':
                 break;
@@ -115,12 +114,16 @@ class qformat_xhtml extends qformat_default {
                 $this->pdf->Write(5, $expout, '', 0, 'L', true, 0, false, false, 0);
                 break;
             case 'multichoice':
-                $expout .= "<ol style=\"list-style-type:upper-alpha\" class=\"multichoice\">\n";
+                $expout .= html_writer::start_tag('ol', array('class' => 'match', 'style' => 'list-style-type:lower-alpha'));
+                //$expout .= "<ol style=\"list-style-type:upper-alpha\" class=\"multichoice\">\n";
                 foreach ($question->options->answers as $answer) {
                     $answertext = $this->repchar( $answer->answer );
-                    $expout .= "  <li>{$answertext}</li>";
+                    $expout .= html_writer::tag('li', $answertext);
+                    //$expout .= "  <li>{$answertext}</li>";
                 }
-                $expout .= "</ol>";
+
+                $expout .= html_writer::end_tag('ol');
+                //$expout .= "</ol>";
                 $this->pdf->WriteHTML($expout, false, false, true, false, '');
                 break;
             case 'shortanswer':
@@ -161,6 +164,7 @@ class qformat_xhtml extends qformat_default {
                     }
                 }
                 $expout .= html_writer::end_tag('ul');
+                $this->pdf->WriteHTML($expout, false, false, true, false, '');
                 break;
             case 'description':
                 break;

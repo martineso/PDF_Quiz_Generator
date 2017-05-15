@@ -115,25 +115,21 @@ class qformat_xhtml extends qformat_default {
                 break;
             case 'multichoice':
                 $expout .= html_writer::start_tag('ol', array('class' => 'match', 'style' => 'list-style-type:lower-alpha'));
-                //$expout .= "<ol style=\"list-style-type:upper-alpha\" class=\"multichoice\">\n";
                 foreach ($question->options->answers as $answer) {
-                    $answertext = $this->repchar( $answer->answer );
+                    $answertext = $this->repchar($answer->answer);
                     $expout .= html_writer::tag('li', $answertext);
-                    //$expout .= "  <li>{$answertext}</li>";
                 }
-
                 $expout .= html_writer::end_tag('ol');
-                //$expout .= "</ol>";
                 $this->pdf->WriteHTML($expout, false, false, true, false, '');
                 break;
             case 'shortanswer':
             case 'numerical':
-                $expout .= $this->tab() . '_______________________________________________________________________________';
+                $expout .= $this->tab() . '_______________________________________________________________________________'; // ????
                 $expout .= $this->gap_between_questions();
                 $this->pdf->Write(5, $expout, '', 0, 'L', true, 0, false, false, 0);
                 break;
             case 'match':
-                $expout .= html_writer::start_tag('ul', array('class' => 'match'));
+                $expout .= html_writer::start_tag('ol', array('class' => 'match'));
 
                 // Build answer list.
                 $answerlist = array();
@@ -149,21 +145,20 @@ class qformat_xhtml extends qformat_default {
                 }
 
                 // Display.
-                $option = 0;
                 foreach ($question->options->subquestions as $subquestion) {
                     // Build drop down for answers.
                     $questiontext = $this->repchar( $subquestion->questiontext );
                     if ($questiontext != '') {
-                        $dropdown = html_writer::label(get_string('answer', 'qtype_match', $option+1), 'quest_'.$id.'_'.$option,
-                                false, array('class' => 'accesshide'));
-                        $dropdown .= html_writer::select($selectoptions, "quest_{$id}_{$option}", '', false,
-                                array('id' => "quest_{$id}_{$option}"));
-                        $expout .= html_writer::tag('li', $questiontext);
-                        $expout .= $dropdown;
-                        $option++;
+                        $expout .= html_writer::tag('li', $questiontext . '___'); // ????????
                     }
                 }
-                $expout .= html_writer::end_tag('ul');
+                $expout .= html_writer::end_tag('ol');
+
+                $expout .= html_writer::start_tag('ol', array('class' => 'answers', 'style' => 'list-style-type:lower-alpha'));
+                foreach ($selectoptions as $opt) {
+                    $expout .= html_writer::tag('li', $this->tab() . $opt);
+                }
+                $expout .= html_writer::end_tag('ol');
                 $this->pdf->WriteHTML($expout, false, false, true, false, '');
                 break;
             case 'description':

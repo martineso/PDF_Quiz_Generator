@@ -36,6 +36,12 @@ defined('MOODLE_INTERNAL') || die();
  */
 class qformat_xhtml extends qformat_default {
 
+    private $pdf = null;
+	
+	public function __construct() {
+        $this->pdf = $this->get_pdf_generator_instance();
+    }
+	
     public function provide_export() {
         return true;
     }
@@ -53,57 +59,61 @@ class qformat_xhtml extends qformat_default {
         if ($question->qtype=='category') {
             return '';
         }
-		
+        
+        
         // Initial string.
         $expout = "";
         $id = $question->id;
 
-        // Add comment and div tags.
-        $expout .= "<!-- question: {$id}  name: {$question->name} -->\n";
-        $expout .= "<div class=\"question\">\n";
-
-        // Add header.
-        $expout .= "<h3>{$question->name}</h3>\n";
-
-        // Format and add the question text.
-        $text = question_rewrite_question_preview_urls($question->questiontext, $question->id,
-                $question->contextid, 'question', 'questiontext', $question->id,
-                $question->contextid, 'qformat_xhtml');
-        $expout .= '<p class="questiontext">' . format_text($text,
-                $question->questiontextformat, array('noclean' => true)) . "</p>\n";
-
+        $expout .= $question->name . " ";
+		$expout .= strip_tags($question->questiontext);
+        $expout .= "\n";
+		
         // Selection depends on question type.
         switch($question->qtype) {
             case 'truefalse':
             	$sttrue = get_string('true', 'qtype_truefalse');
                 $stfalse = get_string('false', 'qtype_truefalse');
-                $expout .= "<ul class=\"truefalse\">";
-                $expout .= "  <li>{$sttrue}</li>";
-                $expout .= "  <li>{$stfalse}</li>";
-                $expout .= "</ul>";
+                
+                $expout .= $this->tab() . $sttrue . "\n";
+                $expout .= $this->tab() . $stfalse . "\n";
+                $expout .= "\n";
+                $this->pdf->Write(5, $expout, '', 0, 'L', true, 0, false, false, 0);
+               
                 break;
             case 'multichoice':
-                // ordered list with upper case letters for indexing
-                $expout .= "<ol class=\"multichoice\">\n";
+                $expout .= "<ul class=\"multichoice\">\n";
                 foreach ($question->options->answers as $answer) {
                     $answertext = $this->repchar( $answer->answer );
                     if ($question->options->single) {
-                        $expout .= "  <li>{$answertext}</li>\n";
+                        $expout .= "  <li><input name=\"quest_{$id}\" type=\"radio\" value=\""
+                                . s($answertext) . "\" />{$answertext}</li>\n";
                     } else {
-                        $expout .= "  <li>{$answertext}</li>\n";
+                        $expout .= "  <li><input name=\"quest_{$id}\" type=\"checkbox\" value=\""
+                                . s($answertext) . "\" />{$answertext}</li>\n";
                     }
                 }
-                $expout .= "</ol>\n";
+                $expout .= "</ul>\n";
                 break;
             case 'shortanswer':
-                $expout .= "<div class=\"answer-text-area\"></div>";
+                $expout .= html_writer::start_tag('ul', array('class' => 'shortanswer'));
+                $expout .= html_writer::start_tag('li');
+                $expout .= html_writer::label(get_string('answer'), 'quest_'.$id, false, array('class' => 'accesshide'));
+                $expout .= html_writer::empty_tag('input', array('id' => "quest_{$id}", 'name' => "quest_{$id}", 'type' => 'text'));
+                $expout .= html_writer::end_tag('li');
+                $expout .= html_writer::end_tag('ul');
                 break;
             case 'numerical':
-                $expout .= "<div class=\"answer-text-area\"></div>";
+                $expout .= html_writer::start_tag('ul', array('class' => 'numerical'));
+                $expout .= html_writer::start_tag('li');
+                $expout .= html_writer::label(get_string('answer'), 'quest_'.$id, false, array('class' => 'accesshide'));
+                $expout .= html_writer::empty_tag('input', array('id' => "quest_{$id}", 'name' => "quest_{$id}", 'type' => 'text'));
+                $expout .= html_writer::end_tag('li');
+                $expout .= html_writer::end_tag('ul');
                 break;
             case 'match':
                 $expout .= html_writer::start_tag('ul', array('class' => 'match'));
-
+				
                 // Build answer list.
                 $answerlist = array();
                 foreach ($question->options->subquestions as $subquestion) {
@@ -138,60 +148,43 @@ class qformat_xhtml extends qformat_default {
                 break;
             case 'multianswer':
             default:
+        		
                 $expout .= "<!-- export of {$question->qtype} type is not supported  -->\n";
         }
-        // Close off div.
-        $expout .= "</div>\n\n\n";
+		$expout .= "</tr>";
         return $expout;
     }
 
-
     protected function presave_process($body) {
-        // Override method to allow us to add xhtml headers and footers.
-		
+        // Convert to pdf
+		$pdf_file = $this->pdf->Output('questions.pdf', 's');
+        return $pdf_file;
+    }
+    
+    private function get_pdf_generator_instance() {
         global $CFG;
 
-        // Get css bit.
-        $csslines = file( "{$CFG->dirroot}/question/format/xhtml/xhtml.css" );
-        $css = implode( ' ', $csslines);
-	
-        $xp =  "<!DOCTYPE html>";
-        $xp .= "<html>";
-        $xp .= "<head>";
-        $xp .= "<meta charset=\"UTF-8\">";
-        $xp .= "<title>Moodle Quiz XHTML Export</title>\n";
-        $xp .= "<style type=\"text/css\">";
-        $xp .= $css;
-        $xp .= "</style>";
-        $xp .= "</head>\n";
-        $xp .= "<body>\n";
-        $xp .= "<div>";
-        $xp .= $body;
-        $xp .= "</div>";
-        $xp .= "</form>\n";
-        $xp .= "</body>\n";
-        $xp .= "</html>\n";
-		
         require_once $CFG->libdir . "/tcpdf/tcpdf.php";
         $fontpath = $CFG->dirroot . "/question/format/xhtml/fonts/OpenSans-Regular.ttf";
     
         $pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
         $pdf->SetMargins(PDF_MARGIN_LEFT, PDF_MARGIN_TOP, PDF_MARGIN_RIGHT);
-		// set auto page breaks
-		$pdf->SetAutoPageBreak(TRUE, PDF_MARGIN_BOTTOM);
-		// set image scale factor
-		$pdf->setImageScale(PDF_IMAGE_SCALE_RATIO);
-		$fontname = TCPDF_FONTS::addTTFfont($fontpath, 'TrueTypeUnicode', '', 32);
-		$pdf->SetFont($fontname, '', 14, '', false);
-		// add a page
-		$pdf->AddPage();
-		$pdf->writeHTML($xp, true, false, true, false, '');
-        
-		$file = $pdf->Output('questions.pdf', 's');
-		
-        return $file;
+        $pdf->SetCellPadding(0);
+        // set auto page breaks
+        $pdf->SetAutoPageBreak(TRUE, PDF_MARGIN_BOTTOM);
+        // set image scale factor
+        $pdf->setImageScale(PDF_IMAGE_SCALE_RATIO);
+        $fontname = TCPDF_FONTS::addTTFfont($fontpath, 'TrueTypeUnicode', '', 32);
+        $pdf->SetFont($fontname, '', 11, '', false);
+        // add a page
+        $pdf->AddPage();
+
+        return $pdf;
     }
-    
+
+    private function tab() {
+        return "    ";
+    }
 
     public function export_file_extension() {
         return '.pdf';

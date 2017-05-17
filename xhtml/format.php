@@ -37,11 +37,12 @@ defined('MOODLE_INTERNAL') || die();
 class qformat_xhtml extends qformat_default {
 
     private $pdf = null;
-	
-	public function __construct() {
+    private $fonts = array();
+
+    public function __construct() {
         $this->pdf = $this->get_pdf_generator_instance();
     }
-	
+
     public function provide_export() {
         return true;
     }
@@ -59,123 +60,152 @@ class qformat_xhtml extends qformat_default {
         if ($question->qtype=='category') {
             return '';
         }
-        
-        
+
         // Initial string.
         $expout = "";
         $id = $question->id;
 
-        $expout .= $question->name . " ";
-		$expout .= strip_tags($question->questiontext);
-        $expout .= "\n";
-		
-        // Selection depends on question type.
+        // Reset columns to default
+        $this->pdf->resetColumns();
+        // format the question name and text
         switch($question->qtype) {
             case 'truefalse':
-            	$sttrue = get_string('true', 'qtype_truefalse');
-                $stfalse = get_string('false', 'qtype_truefalse');
-                
-                $expout .= $this->tab() . $sttrue . "\n";
-                $expout .= $this->tab() . $stfalse . "\n";
+            case 'shortanswer':
+            case 'numerical':
+                $this->write_question_name($question->name);
+                $expout .= strip_tags($question->questiontext); // the text of the question
                 $expout .= "\n";
-                $this->pdf->Write(5, $expout, '', 0, 'L', true, 0, false, false, 0);
-               
                 break;
             case 'multichoice':
-                $expout .= "<ul class=\"multichoice\">\n";
-                foreach ($question->options->answers as $answer) {
-                    $answertext = $this->repchar( $answer->answer );
-                    if ($question->options->single) {
-                        $expout .= "  <li><input name=\"quest_{$id}\" type=\"radio\" value=\""
-                                . s($answertext) . "\" />{$answertext}</li>\n";
-                    } else {
-                        $expout .= "  <li><input name=\"quest_{$id}\" type=\"checkbox\" value=\""
-                                . s($answertext) . "\" />{$answertext}</li>\n";
-                    }
-                }
-                $expout .= "</ul>\n";
-                break;
-            case 'shortanswer':
-                $expout .= html_writer::start_tag('ul', array('class' => 'shortanswer'));
-                $expout .= html_writer::start_tag('li');
-                $expout .= html_writer::label(get_string('answer'), 'quest_'.$id, false, array('class' => 'accesshide'));
-                $expout .= html_writer::empty_tag('input', array('id' => "quest_{$id}", 'name' => "quest_{$id}", 'type' => 'text'));
-                $expout .= html_writer::end_tag('li');
-                $expout .= html_writer::end_tag('ul');
-                break;
-            case 'numerical':
-                $expout .= html_writer::start_tag('ul', array('class' => 'numerical'));
-                $expout .= html_writer::start_tag('li');
-                $expout .= html_writer::label(get_string('answer'), 'quest_'.$id, false, array('class' => 'accesshide'));
-                $expout .= html_writer::empty_tag('input', array('id' => "quest_{$id}", 'name' => "quest_{$id}", 'type' => 'text'));
-                $expout .= html_writer::end_tag('li');
-                $expout .= html_writer::end_tag('ul');
-                break;
             case 'match':
-                $expout .= html_writer::start_tag('ul', array('class' => 'match'));
-				
-                // Build answer list.
-                $answerlist = array();
-                foreach ($question->options->subquestions as $subquestion) {
-                    $answerlist[] = $this->repchar( $subquestion->answertext );
-                }
-                shuffle( $answerlist ); // Random display order.
-
-                // Build select options.
-                $selectoptions = array();
-                foreach ($answerlist as $ans) {
-                    $selectoptions[s($ans)] = s($ans);
-                }
-
-                // Display.
-                $option = 0;
-                foreach ($question->options->subquestions as $subquestion) {
-                    // Build drop down for answers.
-                    $questiontext = $this->repchar( $subquestion->questiontext );
-                    if ($questiontext != '') {
-                        $dropdown = html_writer::label(get_string('answer', 'qtype_match', $option+1), 'quest_'.$id.'_'.$option,
-                                false, array('class' => 'accesshide'));
-                        $dropdown .= html_writer::select($selectoptions, "quest_{$id}_{$option}", '', false,
-                                array('id' => "quest_{$id}_{$option}"));
-                        $expout .= html_writer::tag('li', $questiontext);
-                        $expout .= $dropdown;
-                        $option++;
-                    }
-                }
-                $expout .= html_writer::end_tag('ul');
+                $this->write_question_name($question->name);
+                $expout .= $this->tab() . strip_tags($question->questiontext);
+                $expout .= "\n";
                 break;
             case 'description':
                 break;
             case 'multianswer':
+                break;
+            case 'calculated':
+                break;
+            case 'calculatedmulti':
+                break;
+            case 'calculatedsimple':
+                break;
+            case 'essay':
+                break;
+            case 'gapselect':
+                break;
+            // for all unsupported question types add an HTML comment (just in case) and return nothing
             default:
-        		
+                $expout .= "<!-- export of {$question->qtype} type is not supported  -->\n";
+                $this->pdf->WriteHTML($expout, true, false, true, false, '');
+                return '';
+        }
+
+        $this->pdf->Write(5, $expout, '', 0, 'L', true, 0, false, false, 0);
+
+
+        $expout = "";
+
+        // Selection depends on question type.
+        switch($question->qtype) {
+            case 'truefalse':
+                $sttrue = get_string('true', 'qtype_truefalse');
+                $stfalse = get_string('false', 'qtype_truefalse');
+                $expout .= $this->tab() . $sttrue . $this->tab();
+                $expout .= $this->tab() . $stfalse;
+                $expout .= $this->gap_between_questions();
+                $this->pdf->Write(5, $expout, '', 0, 'L', true, 0, false, false, 0);
+                break;
+            case 'multichoice':
+                $expout .= html_writer::start_tag('ol', array('class' => 'match', 'style' => 'list-style-type:lower-alpha'));
+                foreach ($question->options->answers as $answer) {
+                    $answertext = $this->repchar($answer->answer);
+                    $expout .= html_writer::tag('li', $answertext);
+                }
+                $expout .= html_writer::end_tag('ol');
+                $this->pdf->WriteHTML($expout, false, false, true, false, '');
+                break;
+            case 'shortanswer':
+            case 'numerical':
+                $expout .= $this->tab() . '_______________________________________________________________________________'; // ????
+                $expout .= $this->gap_between_questions();
+                $this->pdf->Write(5, $expout, '', 0, 'L', true, 0, false, false, 0);
+                break;
+            case 'match':
+               
+                $l_column = "";
+                $r_column = "";
+                foreach ($question->options->subquestions as $subquestion) {
+                    // If we have an empty string, ignore
+                    if(empty($subquestion->questiontext)) {
+                        continue;
+                    }
+                    $l_column .= $this->tab() . strip_tags($subquestion->questiontext) . "\n";
+                    $r_column .= strip_tags($subquestion->answertext) . "\n";
+                 }
+
+                // Display
+                // Set a margin of 4 between the header and the body of the question
+                $this->pdf->Ln(4);
+                $this->pdf->setEqualColumns(2, 100);
+                // Write first column
+                $this->pdf->selectColumn(0);
+                $this->pdf->Write(5, $l_column, '', 0, 'L', false, 0, false, false, 0);
+
+                // Write second column
+                $this->pdf->selectColumn(1);
+                $this->pdf->Write(5, $r_column, '', 0, true, 'L', false, 0, false, false, 0);
+
+                $this->pdf->resetColumns();
+                // A new line is required since the TCPDF lib does not reset the columns until
+                // a new line is encountered
+                $this->pdf->Write(5, $this->gap_between_questions(), '', 0, true, 'L', false, 0, false, false, 0);
+                break;
+            case 'description':
+                break;
+            case 'multianswer':
+                break;
+            case 'calculated':
+                break;
+            case 'calculatedmulti':
+                break;
+            case 'calculatedsimple':
+                break;
+            case 'essay':
+                break;
+            case 'gapselect':
+                break;
+            default:
                 $expout .= "<!-- export of {$question->qtype} type is not supported  -->\n";
         }
-		$expout .= "</tr>";
+		// $expout .= "</tr>";
         return $expout;
     }
 
     protected function presave_process($body) {
         // Convert to pdf
-		$pdf_file = $this->pdf->Output('questions.pdf', 's');
+	    $pdf_file = $this->pdf->Output('questions.pdf', 's');
         return $pdf_file;
     }
-    
+
     private function get_pdf_generator_instance() {
         global $CFG;
-
         require_once $CFG->libdir . "/tcpdf/tcpdf.php";
-        $fontpath = $CFG->dirroot . "/question/format/xhtml/fonts/OpenSans-Regular.ttf";
-    
+
         $pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
+
+        // set up the font
+        $this->load_fonts();
+        $pdf->SetFont($this->fonts['regular'], '', 11, '', false);
+
         $pdf->SetMargins(PDF_MARGIN_LEFT, PDF_MARGIN_TOP, PDF_MARGIN_RIGHT);
         $pdf->SetCellPadding(0);
         // set auto page breaks
         $pdf->SetAutoPageBreak(TRUE, PDF_MARGIN_BOTTOM);
         // set image scale factor
         $pdf->setImageScale(PDF_IMAGE_SCALE_RATIO);
-        $fontname = TCPDF_FONTS::addTTFfont($fontpath, 'TrueTypeUnicode', '', 32);
-        $pdf->SetFont($fontname, '', 11, '', false);
         // add a page
         $pdf->AddPage();
 
@@ -185,6 +215,47 @@ class qformat_xhtml extends qformat_default {
     private function tab() {
         return "    ";
     }
+
+    private function gap_between_questions() {
+        return "\n\n";
+    }
+
+    private function write_question_name($question_name) {
+      $text = "";
+      $text .= $question_name . "\n";  // the "name" of the question
+
+      $this->pdf->SetFont($this->fonts['bold'], 'B', 11);
+      $this->pdf->Write(5, $text, '', 0, 'L', false, 0, false, false, 0, '');
+      $this->pdf->SetFont($this->fonts['regular'], '', 11);
+    }
+   
+    /*
+        Loads the fonts array with the names of the two Open Sans fonts i.e
+        Array
+        (
+            [regular] => opensans
+            [bold] => opensansb
+        )
+        
+        Usage example:
+        $this->pdf->SetFont($this->fonts['regular'], '', 11);
+
+    */
+    private function load_fonts() {
+        global $CFG;
+
+        $fontpath = "";
+
+        // load the regular font
+        $fontpath = $CFG->dirroot . "/question/format/xhtml/fonts/OpenSans-Regular.ttf";
+        $this->fonts['regular'] = TCPDF_FONTS::addTTFfont($fontpath, 'TrueTypeUnicode', '', 32);
+
+        // Load the bold font
+        $fontpath = $CFG->dirroot . "/question/format/xhtml/fonts/OpenSans-Bold.ttf";
+        $this->fonts['bold'] = TCPDF_FONTS::addTTFfont($fontpath, 'TrueTypeUnicode', '', 32);
+    }
+
+
 
     public function export_file_extension() {
         return '.pdf';

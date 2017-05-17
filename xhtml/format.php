@@ -74,13 +74,11 @@ class qformat_xhtml extends qformat_default {
             case 'numerical':
                 $this->write_question_name($question->name);
                 $expout .= strip_tags($question->questiontext); // the text of the question
-                $expout .= "\n";
                 break;
             case 'multichoice':
             case 'match':
                 $this->write_question_name($question->name);
                 $expout .= $this->tab() . strip_tags($question->questiontext);
-                $expout .= "\n";
                 break;
             case 'description':
                 break;
@@ -104,10 +102,11 @@ class qformat_xhtml extends qformat_default {
         }
 
         $this->pdf->Write(5, $expout, '', 0, 'L', true, 0, false, false, 0);
+        // Set a margin between the question header and the question's body
+        $this->pdf->Ln(2);
 
 
         $expout = "";
-
         // Selection depends on question type.
         switch($question->qtype) {
             case 'truefalse':
@@ -119,17 +118,20 @@ class qformat_xhtml extends qformat_default {
                 $this->pdf->Write(5, $expout, '', 0, 'L', true, 0, false, false, 0);
                 break;
             case 'multichoice':
-                $expout .= html_writer::start_tag('ol', array('class' => 'match', 'style' => 'list-style-type:lower-alpha'));
+                
+                // echo "<pre>"; print_r($question); echo "</pre>"; die();
+                $index = 1;
                 foreach ($question->options->answers as $answer) {
-                    $answertext = $this->repchar($answer->answer);
-                    $expout .= html_writer::tag('li', $answertext);
+                    $expout .= $this->tab() . $index . '. ' . strip_tags($answer->answer) . "\n";
+                    $index++;
                 }
-                $expout .= html_writer::end_tag('ol');
-                $this->pdf->WriteHTML($expout, false, false, true, false, '');
+
+                $expout .= $this->gap_between_questions();
+                $this->pdf->Write(5, $expout, '', 0, 'L', true, 0, false, false, 0);
                 break;
             case 'shortanswer':
             case 'numerical':
-                $expout .= $this->tab() . '_______________________________________________________________________________'; // ????
+                $expout .= $this->tab() . str_repeat('_', 100); // Writes 100 undeline chars
                 $expout .= $this->gap_between_questions();
                 $this->pdf->Write(5, $expout, '', 0, 'L', true, 0, false, false, 0);
                 break;
@@ -147,8 +149,6 @@ class qformat_xhtml extends qformat_default {
                  }
 
                 // Display
-                // Set a margin of 4 between the header and the body of the question
-                $this->pdf->Ln(4);
                 $this->pdf->setEqualColumns(2, 100);
                 // Write first column
                 $this->pdf->selectColumn(0);

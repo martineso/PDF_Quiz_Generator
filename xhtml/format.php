@@ -38,17 +38,16 @@ class qformat_xhtml extends qformat_default {
 
     private $pdf = null;
     private $fonts = array();
-
+    private $q_count = 1;
+    private $alphabet = array();
+    private static $q_matches = array();
     public function __construct() {
         $this->pdf = $this->get_pdf_generator_instance();
+        $this->alphabet = range('a', 'z'); 
     }
 
     public function provide_export() {
         return true;
-    }
-
-    protected function repchar($text) {
-        return $text;
     }
 
     protected function writequestion($question) {
@@ -61,50 +60,63 @@ class qformat_xhtml extends qformat_default {
             return '';
         }
 
-        // Initial string.
+        // Initialize variables.
         $expout = "";
         $id = $question->id;
-
+        static $matches;
         // Reset columns to default
         $this->pdf->resetColumns();
+
         // format the question name and text
+
         switch($question->qtype) {
             case 'truefalse':
             case 'shortanswer':
             case 'numerical':
-                $this->write_question_name($question->name);
+                $this->write_question_index($this->q_count);
+                $this->q_count++; // increment the index
                 $expout .= strip_tags($question->questiontext); // the text of the question
                 break;
             case 'multichoice':
             case 'match':
-                $this->write_question_name($question->name);
-                $expout .= $this->tab() . strip_tags($question->questiontext);
-                break;
-            case 'description':
-                break;
-            case 'multianswer':
+                $this->write_question_index($this->q_count);
+                $this->q_count++; // increment the index
+                $expout .= strip_tags($question->questiontext);
                 break;
             case 'calculated':
-                break;
             case 'calculatedmulti':
+                $this->write_question_index($this->q_count);
+                $this->q_count++; // increment the index
+                $expout .= strip_tags($question->questiontext);
+
+                self::$q_matches = $this->get_matches_array($question, $expout);
+                foreach (self::$q_matches as $match) {
+                    $expout = str_replace($match['raw'], $match['value'], $expout);
+                }
+
+                $expout = str_replace('&nbsp;', ' ', $expout);
+                break;
+            /*case 'description':
+                break;
+            case 'multianswer':
                 break;
             case 'calculatedsimple':
                 break;
             case 'essay':
                 break;
             case 'gapselect':
-                break;
+                break;*/
             // for all unsupported question types add an HTML comment (just in case) and return nothing
             default:
-                $expout .= "<!-- export of {$question->qtype} type is not supported  -->\n";
-                $this->pdf->WriteHTML($expout, true, false, true, false, '');
-                return '';
+
+                $expout .= 'Type: ' . $question->qtype . ' is not supported';
+                //$this->pdf->Write(5, $expout, '', 0, 'L', true, 0, false, false, 0);
+                break;
         }
 
         $this->pdf->Write(5, $expout, '', 0, 'L', true, 0, false, false, 0);
         // Set a margin between the question header and the question's body
         $this->pdf->Ln(2);
-
 
         $expout = "";
         // Selection depends on question type.
@@ -118,8 +130,6 @@ class qformat_xhtml extends qformat_default {
                 $this->pdf->Write(5, $expout, '', 0, 'L', true, 0, false, false, 0);
                 break;
             case 'multichoice':
-                
-                // echo "<pre>"; print_r($question); echo "</pre>"; die();
                 $index = 1;
                 foreach ($question->options->answers as $answer) {
                     $expout .= $this->tab() . $index . '. ' . strip_tags($answer->answer) . "\n";
@@ -129,8 +139,29 @@ class qformat_xhtml extends qformat_default {
                 $expout .= $this->gap_between_questions();
                 $this->pdf->Write(5, $expout, '', 0, 'L', true, 0, false, false, 0);
                 break;
+            case 'calculatedmulti':
+                $index = 0;
+                $answer_str = "";
+                
+                print_r(self::$q_matches); die(); // Needs solution asap
+                foreach ($question->options->answers as $answer) {
+                    $answer_str = strip_tags($answer->answer);
+                    
+                    foreach ($matches as $match) {
+                        $answer_str = str_replace($match['raw'], $match['value'], $answer_str);
+                    }
+
+                    $answer_str = str_replace('&nbsp;', ' ', $answer_str);
+                    $expout .= $this->tab() . $this->alphabet[$index % 26] . '. ' . $answer_str . "\n";
+                    $index++;
+                }
+
+                $expout .= $this->gap_between_questions();
+                $this->pdf->Write(5, $expout, '', 0, 'L', true, 0, false, false, 0);
+                break;
             case 'shortanswer':
             case 'numerical':
+            case 'calculated';
                 $expout .= $this->tab() . str_repeat('_', 100); // Writes 100 undeline chars
                 $expout .= $this->gap_between_questions();
                 $this->pdf->Write(5, $expout, '', 0, 'L', true, 0, false, false, 0);
@@ -139,13 +170,19 @@ class qformat_xhtml extends qformat_default {
                
                 $l_column = "";
                 $r_column = "";
+
+                $a_bet_counter = 0;
+                $subq_counter = 1;
                 foreach ($question->options->subquestions as $subquestion) {
                     // If we have an empty string, ignore
-                    if(empty($subquestion->questiontext)) {
-                        continue;
+                    if(!empty($subquestion->questiontext)) {
+                        $l_column .= $this->tab() . $subq_counter . '. ' . strip_tags($subquestion->questiontext) . "\n";
+                        $subq_counter++;
                     }
-                    $l_column .= $this->tab() . strip_tags($subquestion->questiontext) . "\n";
-                    $r_column .= strip_tags($subquestion->answertext) . "\n";
+                    if(!empty($subquestion->answertext)) {
+                        $r_column .= $this->alphabet[$a_bet_counter % 26] . ') ' . strip_tags($subquestion->answertext) . "\n";
+                        $a_bet_counter++;
+                    }
                  }
 
                 // Display
@@ -163,13 +200,10 @@ class qformat_xhtml extends qformat_default {
                 // a new line is encountered
                 $this->pdf->Write(5, $this->gap_between_questions(), '', 0, true, 'L', false, 0, false, false, 0);
                 break;
+
             case 'description':
                 break;
             case 'multianswer':
-                break;
-            case 'calculated':
-                break;
-            case 'calculatedmulti':
                 break;
             case 'calculatedsimple':
                 break;
@@ -180,7 +214,7 @@ class qformat_xhtml extends qformat_default {
             default:
                 $expout .= "<!-- export of {$question->qtype} type is not supported  -->\n";
         }
-		// $expout .= "</tr>";
+		
         return $expout;
     }
 
@@ -220,15 +254,56 @@ class qformat_xhtml extends qformat_default {
         return "\n\n";
     }
 
-    private function write_question_name($question_name) {
+    private function write_question_index($index) {
       $text = "";
-      $text .= $question_name . "\n";  // the "name" of the question
+      // The index of the question i.e. 
+      // 1. Question text
+      $text .= $index . '. '; 
 
       $this->pdf->SetFont($this->fonts['bold'], 'B', 11);
       $this->pdf->Write(5, $text, '', 0, 'L', false, 0, false, false, 0, '');
       $this->pdf->SetFont($this->fonts['regular'], '', 11);
     }
-   
+    
+    private function get_matches_array($question, $expout) {
+        $matches = array();
+        $temp_arr = array();
+        $moodle_placehodler_regex = '(\{[a-zA-Z]+\})';
+        $q_data_sets = $question->options->datasets;
+
+        preg_match_all($moodle_placehodler_regex, $expout, $matches);
+
+        foreach ($matches[0] as $key => $match) {
+            // trim the placeholder from the brackets
+            $temp = (string) trim($match, '{}');
+            $temp_arr[$temp]['clean'] = $temp;
+            $temp_arr[$temp]['raw'] = $match;
+            $temp_arr[$temp]['value'] = '';
+        }
+
+        $matches = $temp_arr;
+        // Clear out the array
+        $temp_arr = array();
+
+        foreach ($q_data_sets as $set) {
+            foreach ($matches as $match) {
+                if($set->name == $match['clean']) {
+                    foreach ($set->items as $item) {
+                        $temp_arr[] = strip_tags($item->value);
+                    }
+                    // Shuffle the array and pick a random element
+                    shuffle($temp_arr);
+                    $value = array_rand($temp_arr);
+                    $value = $temp_arr[$value];
+                    $matches[$match['clean']]['value'] = (string)$value;
+                    // Clear out the array
+                    $temp_arr = array(); 
+                }
+            }
+        }
+
+        return $matches;
+    }
     /*
         Loads the fonts array with the names of the two Open Sans fonts i.e
         Array
@@ -261,3 +336,5 @@ class qformat_xhtml extends qformat_default {
         return '.pdf';
     }
 }
+
+//echo "<pre>"; print_r($this->alphabet); echo "</pre>"; die;

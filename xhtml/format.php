@@ -84,36 +84,19 @@ class qformat_xhtml extends qformat_default {
                 $expout .= strip_tags($question->questiontext);
                 break;
             case 'calculated':
-                $expout = $this->write_calculated_q_text($question);
-                break;
             case 'calculatedmulti':
-                $expout = $this->write_calculated_q_text($question);
+                $this->write_question_index($this->q_count);
+                $this->q_count++; // increment the index
+                $expout .= strip_tags($question->questiontext);
 
-                $this->pdf->Write(5, $expout, '', 0, 'L', true, 0, false, false, 0);
-                // Set a margin between the question header and the question's body
-                $this->pdf->Ln(2);
-
-                $index = 0;
-                $expout = "";
-                $answer_str = "";
-                
-                //print_r(self::$q_matches); die(); // Needs solution asap
-                foreach ($question->options->answers as $answer) {
-                    $answer_str = strip_tags($answer->answer);
-                    
-                    foreach (self::$q_matches as $match) {
-                        $answer_str = str_replace($match['raw'], $match['value'], $answer_str);
-                    }
-
-                    $answer_str = str_replace('&nbsp;', ' ', $answer_str);
-                    $expout .= $this->tab() . $this->alphabet[$index % 26] . '. ' . $answer_str . "\n";
-                    $index++;
+                self::$q_matches = $this->get_matches_array($question, $expout);
+                foreach (self::$q_matches as $match) {
+                    $expout = str_replace($match['raw'], $match['value'], $expout);
                 }
 
-                $expout .= $this->gap_between_questions();
-                $this->pdf->Write(5, $expout, '', 0, 'L', true, 0, false, false, 0);
-                
-                return '';
+                $expout = str_replace('&nbsp;', ' ', $expout);
+
+                break;
             /*case 'description':
                 break;
             case 'multianswer':
@@ -199,12 +182,32 @@ class qformat_xhtml extends qformat_default {
                 // a new line is encountered
                 $this->pdf->Write(5, $this->gap_between_questions(), '', 0, true, 'L', false, 0, false, false, 0);
                 break;
+            case 'calculatedmulti':
+                $index = 0;
+                $expout = "";
+                $answer_str = "";
+                
+                //print_r(self::$q_matches); die(); // Needs solution asap
+                foreach ($question->options->answers as $answer) {
+                    $answer_str = strip_tags($answer->answer);
+                    
+                    foreach (self::$q_matches as $match) {
+                        $answer_str = str_replace($match['raw'], $match['value'], $answer_str);
+                    }
 
+                    $answer_str = str_replace('&nbsp;', ' ', $answer_str);
+                    $expout .= $this->tab() . $this->alphabet[$index % 26] . '. ' . $answer_str . "\n";
+                    $index++;
+                }
+
+                $expout .= $this->gap_between_questions();
+                $this->pdf->Write(5, $expout, '', 0, 'L', true, 0, false, false, 0);
+                break;
+            case 'calculatedsimple':
+                break;
             case 'description':
                 break;
             case 'multianswer':
-                break;
-            case 'calculatedsimple':
                 break;
             case 'essay':
                 break;
@@ -257,27 +260,13 @@ class qformat_xhtml extends qformat_default {
       $text = "";
       // The index of the question i.e. 
       // 1. Question text
-      $text .= $index . '. '; 
-
+      $text .= $index . '. ';
+      
       $this->pdf->SetFont($this->fonts['bold'], 'B', 11);
       $this->pdf->Write(5, $text, '', 0, 'L', false, 0, false, false, 0, '');
       $this->pdf->SetFont($this->fonts['regular'], '', 11);
     }
 
-    private function write_calculated_q_text($question) {
-        $this->write_question_index($this->q_count);
-        $this->q_count++; // increment the index
-        $expout .= strip_tags($question->questiontext);
-
-        self::$q_matches = $this->get_matches_array($question, $expout);
-        foreach (self::$q_matches as $match) {
-            $expout = str_replace($match['raw'], $match['value'], $expout);
-        }
-
-        $expout = str_replace('&nbsp;', ' ', $expout);
-        return $expout;
-    }
-    
     private function get_matches_array($question, $expout) {
         $matches = array();
         $temp_arr = array();

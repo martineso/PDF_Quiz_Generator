@@ -73,18 +73,17 @@ class qformat_xhtml extends qformat_default {
             case 'truefalse':
             case 'shortanswer':
             case 'numerical':
-                $this->write_question_index($this->q_count);
-                $this->q_count++; // increment the index
-                $expout .= strip_tags($question->questiontext); // the text of the question
-                break;
+            case 'essay':
             case 'multichoice':
             case 'match':
                 $this->write_question_index($this->q_count);
                 $this->q_count++; // increment the index
-                $expout .= strip_tags($question->questiontext);
+                $expout .= strip_tags($question->questiontext); // the text of the question
                 break;
             case 'calculated':
             case 'calculatedmulti':
+            case 'calculatedsimple':
+                
                 $this->write_question_index($this->q_count);
                 $this->q_count++; // increment the index
                 $expout .= strip_tags($question->questiontext);
@@ -97,16 +96,17 @@ class qformat_xhtml extends qformat_default {
                 $expout = str_replace('&nbsp;', ' ', $expout);
 
                 break;
-            /*case 'description':
-                break;
-            case 'multianswer':
-                break;
-            case 'calculatedsimple':
-                break;
-            case 'essay':
-                break;
+
             case 'gapselect':
-                break;*/
+                $this->write_question_index($this->q_count);
+                $this->q_count++; // increment the index
+
+                $text = $this->replace_placeholders_gapselect_q($question->questiontext);
+                $expout .= strip_tags($text) . "\n";
+                break;
+            case 'description':
+                break;
+
             // for all unsupported question types add an HTML comment (just in case) and return nothing
             default:
 
@@ -144,6 +144,8 @@ class qformat_xhtml extends qformat_default {
             case 'shortanswer':
             case 'numerical':
             case 'calculated';
+            case 'calculatedsimple':
+
                 $expout .= $this->tab() . str_repeat('_', 100); // Writes 100 undeline chars
                 $expout .= $this->gap_between_questions();
                 $this->pdf->Write(5, $expout, '', 0, 'L', true, 0, false, false, 0);
@@ -158,11 +160,11 @@ class qformat_xhtml extends qformat_default {
                 foreach ($question->options->subquestions as $subquestion) {
                     // If we have an empty string, ignore
                     if(!empty($subquestion->questiontext)) {
-                        $l_column .= $this->tab() . $subq_counter . '. ' . strip_tags($subquestion->questiontext) . "\n";
+                        $l_column .= $this->tab() . $subq_counter . '. ' . strip_tags($subquestion->questiontext) . ' ___' . "\n";
                         $subq_counter++;
                     }
                     if(!empty($subquestion->answertext)) {
-                        $r_column .= $this->alphabet[$a_bet_counter % 26] . ') ' . strip_tags($subquestion->answertext) . "\n";
+                        $r_column .= $this->alphabet[$a_bet_counter] . ') ' . strip_tags($subquestion->answertext) . "\n";
                         $a_bet_counter++;
                     }
                  }
@@ -203,15 +205,34 @@ class qformat_xhtml extends qformat_default {
                 $expout .= $this->gap_between_questions();
                 $this->pdf->Write(5, $expout, '', 0, 'L', true, 0, false, false, 0);
                 break;
-            case 'calculatedsimple':
-                break;
             case 'description':
+                
+                $expout .= $this->tab() . strip_tags($question->questiontext) . "\n";
+                $expout .= $this->gap_between_questions();
+                $this->pdf->Write(5, $expout, '', 0, 'L', true, 0, false, false, 0);
+                break;
+
+            case 'essay':
+                
+                $lines = $question->options->responsefieldlines;
+                for($i = $lines; $i > 0; $i--) {
+                    $expout .= "\n"; 
+                }
+                
+                $expout .= $this->gap_between_questions();
+                $this->pdf->Write(5, $expout, '', 0, 'L', true, 0, false, false, 0);
+                break;
+            case 'gapselect':  
+                $counter = 1;
+                foreach ($question->options->answers as $answer) {
+                    $expout .= $this->tab() . $counter . '. ' . strip_tags($answer->answer) . "\n";
+                    $counter++;
+                }
+
+                $expout .= $this->gap_between_questions();
+                $this->pdf->Write(5, $expout, '', 0, 'L', true, 0, false, false, 0);
                 break;
             case 'multianswer':
-                break;
-            case 'essay':
-                break;
-            case 'gapselect':
                 break;
             default:
                 $expout .= "<!-- export of {$question->qtype} type is not supported  -->\n";
@@ -267,6 +288,12 @@ class qformat_xhtml extends qformat_default {
       $this->pdf->SetFont($this->fonts['regular'], '', 11);
     }
 
+    private function replace_placeholders_gapselect_q($text) {
+        $regex = '(\[+[\d]+\]+)';
+
+        $out = preg_replace($regex, " ___ ", $text);
+        return $out;
+    }
     private function get_matches_array($question, $expout) {
         $matches = array();
         $temp_arr = array();

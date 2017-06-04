@@ -15,10 +15,10 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * XHTML question exporter.
+ * PDF question exporter.
  *
- * @package    qformat_xhtml
- * @copyright  2005 Howard Miller
+ * @package    qformat_pdf
+ * @copyright  2017 Martin Kontilov, Boyan Kushlev, Simeon Vasilev
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -27,9 +27,10 @@ defined('MOODLE_INTERNAL') || die();
 
 
 /**
- * XHTML question exporter.
+ * PDF question exporter.
  *
- * Exports questions as static HTML.
+ * Exports questions from a question bank in a certain category
+ * to a PDF file 
  *
  * @copyright  2005 Howard Miller
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
@@ -40,10 +41,17 @@ class qformat_xhtml extends qformat_default {
     private $fonts = array();
     private $q_count = 1;
     private $alphabet = array();
-    private static $q_matches = array();
+    private $q_matches = array();
+    private $not_supported = array();
+
+
+
     public function __construct() {
         $this->pdf = $this->get_pdf_generator_instance();
         $this->alphabet = range('a', 'z'); 
+
+        global $CFG;
+        $CFG->cachejs = false;
     }
 
     public function provide_export() {
@@ -60,6 +68,7 @@ class qformat_xhtml extends qformat_default {
             return '';
         }
 
+
         // Initialize variables.
         $expout = "";
         $id = $question->id;
@@ -67,8 +76,9 @@ class qformat_xhtml extends qformat_default {
         // Reset columns to default
         $this->pdf->resetColumns();
 
-        // format the question name and text
-
+        // ==================================
+        // Format the question name and text.
+        // This is the header of the question.
         switch($question->qtype) {
             case 'truefalse':
             case 'shortanswer':
@@ -88,8 +98,8 @@ class qformat_xhtml extends qformat_default {
                 $this->q_count++; // increment the index
                 $expout .= strip_tags($question->questiontext);
 
-                self::$q_matches = $this->get_matches_array($question, $expout);
-                foreach (self::$q_matches as $match) {
+                $this->q_matches = $this->get_matches_array($question, $expout);
+                foreach ($this->q_matches as $match) {
                     $expout = str_replace($match['raw'], $match['value'], $expout);
                 }
 
@@ -102,22 +112,26 @@ class qformat_xhtml extends qformat_default {
                 $this->q_count++; // increment the index
 
                 $text = $this->replace_placeholders_gapselect_q($question->questiontext);
+                
                 $expout .= strip_tags($text) . "\n";
+                $expout = str_replace('&nbsp;', ' ', $expout);
                 break;
             case 'description':
                 break;
 
-            // for all unsupported question types add an HTML comment (just in case) and return nothing
+            // Skip as the next switch statement will deal with unsupported question types.
             default:
-
-                $expout .= 'Type: ' . $question->qtype . ' is not supported';
-                //$this->pdf->Write(5, $expout, '', 0, 'L', true, 0, false, false, 0);
                 break;
         }
 
         $this->pdf->Write(5, $expout, '', 0, 'L', true, 0, false, false, 0);
         // Set a margin between the question header and the question's body
         $this->pdf->Ln(2);
+
+        // ===============================================================
+        // Format the body of the question.
+        // In most cases these are the possible answers for test questions
+        // or empty space for open- answer questions.
 
         $expout = "";
         // Selection depends on question type.
@@ -189,11 +203,10 @@ class qformat_xhtml extends qformat_default {
                 $expout = "";
                 $answer_str = "";
                 
-                //print_r(self::$q_matches); die(); // Needs solution asap
                 foreach ($question->options->answers as $answer) {
                     $answer_str = strip_tags($answer->answer);
                     
-                    foreach (self::$q_matches as $match) {
+                    foreach ($this->q_matches as $match) {
                         $answer_str = str_replace($match['raw'], $match['value'], $answer_str);
                     }
 
@@ -234,14 +247,32 @@ class qformat_xhtml extends qformat_default {
                 break;
             case 'multianswer':
                 break;
+                // If the question is not supported put it in the array with not supported questions
+                // which will be displayed as an error message prior to the pdf file being exported.
             default:
-                $expout .= "<!-- export of {$question->qtype} type is not supported  -->\n";
+                $expout = "The question: " . strp_tags($question->name) . " is not supported!";
+                array_push($this->not_supported, strip_tags($expout));
+                break;
         }
-		
+
         return $expout;
+    }
+    /*
+        Check if there are any not supported questions and display a modal
+    */
+    public function exportpreprocess() {
+
+        if(!empty($this->not_supported)){
+            global $PAGE;
+            $PAGE->requires->js_call_amd('qformat_xhtml/validationErrors', 'init', array('notSupported' => $this->not_supported));
+            return false;
+        }
+        return true;
+        
     }
 
     protected function presave_process($body) {
+        
         // Convert to pdf
 	    $pdf_file = $this->pdf->Output('questions.pdf', 's');
         return $pdf_file;
@@ -366,4 +397,4 @@ class qformat_xhtml extends qformat_default {
     }
 }
 
-//echo "<pre>"; print_r($this->alphabet); echo "</pre>"; die;
+//echo "<pre>"; print_r($question); echo "</pre>"; die;

@@ -52,6 +52,14 @@ class qformat_xhtml extends qformat_default {
 
         global $CFG;
         $CFG->cachejs = false;
+	 
+	// add Name: and Date: <current date> at the top of the page
+	$student_name = get_string("student_name", "qformat_xhtml");
+        $date = get_string("date", "qformat_xhtml");
+        $this->pdf->Write(5, $student_name, '', 0, 'L', false, 0, false, false, 0); //ln=false to prevent going on a new line
+        $this->pdf->Write(5, $date, '', 0, 'R', true, 0, false, false, 0);
+        $this->pdf->Write(5, $this->gap_between_questions(), '', 0, true, 'L', false, 0, false, false, 0);
+        $this->pdf->Write(5, $this->gap_between_questions(), '', 0, true, 'L', false, 0, false, false, 0);
     }
 
     public function provide_export() {

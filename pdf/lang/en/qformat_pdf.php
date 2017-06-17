@@ -15,18 +15,18 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Version information for the calculated question type.
+ * Strings for component 'qformat_pdf', language 'en', branch 'MOODLE_20_STABLE'
  *
- * @package    qformat_xhtml
- * @copyright  2011 The Open University
+ * @package    qformat_pdf
+ * @copyright  2017 Martin Kontilov, Boyan Kushlev, Simeon Vasilev
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-defined('MOODLE_INTERNAL') || die();
+// $a is a list of questions passed by the print_error(...) function as a string
+$string['not_supported'] = 'There following questions are not supported: <br> {$a} Please check the question bank!';
+$string['student_name'] = 'Name: ';
+$string['date'] = 'Date: ' . date("Y-m-d");
 
-$plugin->component = 'qformat_xhtml';
-$plugin->version   = 2016120500;
-
-$plugin->requires  = 2016112900;
-
-$plugin->maturity  = MATURITY_STABLE;
+$string['pluginname'] = 'PDF format';
+$string['pluginname_help'] = 'PDF format enables all questions in the category to be exported to a single page of PDF for printing on a sheet of paper.';
+$string['pluginname_link'] = 'qformat/pdf';

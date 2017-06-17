@@ -35,27 +35,25 @@ defined('MOODLE_INTERNAL') || die();
  * @copyright  2005 Howard Miller
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class qformat_xhtml extends qformat_default {
+class qformat_pdf extends qformat_default {
 
     private $pdf = null;
     private $fonts = array();
     private $q_count = 1;
     private $alphabet = array();
     private $q_matches = array();
-    private $not_supported = array();
+    private static $not_supported;
 
 
 
     public function __construct() {
         $this->pdf = $this->get_pdf_generator_instance();
         $this->alphabet = range('a', 'z'); 
-
-        global $CFG;
-        $CFG->cachejs = false;
+        self::$not_supported = array();
 	 
-	// add Name: and Date: <current date> at the top of the page
-	$student_name = get_string("student_name", "qformat_xhtml");
-        $date = get_string("date", "qformat_xhtml");
+    	// add Name: and Date: <current date> at the top of the page
+    	$student_name = get_string("student_name", "qformat_pdf");
+        $date = get_string("date", "qformat_pdf");
         $this->pdf->Write(5, $student_name, '', 0, 'L', false, 0, false, false, 0); //ln=false to prevent going on a new line
         $this->pdf->Write(5, $date, '', 0, 'R', true, 0, false, false, 0);
         $this->pdf->Write(5, $this->gap_between_questions(), '', 0, true, 'L', false, 0, false, false, 0);
@@ -258,30 +256,31 @@ class qformat_xhtml extends qformat_default {
                 // If the question is not supported put it in the array with not supported questions
                 // which will be displayed as an error message prior to the pdf file being exported.
             default:
-                $expout = "The question: " . strp_tags($question->name) . " is not supported!";
-                array_push($this->not_supported, strip_tags($expout));
+                $expout = "- " . strip_tags($question->name);
+                array_push(self::$not_supported, strip_tags($expout));
                 break;
         }
 
         return $expout;
     }
-    /*
-        Check if there are any not supported questions and display a modal
-    */
-    public function exportpreprocess() {
-
-        if(!empty($this->not_supported)){
-            global $PAGE;
-            $PAGE->requires->js_call_amd('qformat_xhtml/validationErrors', 'init', array('notSupported' => $this->not_supported));
-            return false;
-        }
-        return true;
-        
-    }
 
     protected function presave_process($body) {
-        
-        // Convert to pdf
+        /*
+            If there are elements in the not_supported array - display an error.
+            Check the /lang/en/qformat_pdf.php file for the error string!
+        */
+        if(!empty(self::$not_supported)){
+
+            global $PAGE;
+            $courseid = $PAGE->course->id;
+            $return_url = new moodle_url("/question/export.php?courseid={$courseid}");
+
+            $a = $this->get_not_supported_str(self::$not_supported);
+            print_error('not_supported', 'qformat_pdf', $return_url, $a);
+        }
+
+        // If no errors are encountered continue with file download.
+        // Convert to pdf.
 	    $pdf_file = $this->pdf->Output('questions.pdf', 's');
         return $pdf_file;
     }
@@ -390,15 +389,25 @@ class qformat_xhtml extends qformat_default {
         $fontpath = "";
 
         // load the regular font
-        $fontpath = $CFG->dirroot . "/question/format/xhtml/fonts/OpenSans-Regular.ttf";
+        $fontpath = $CFG->dirroot . "/question/format/pdf/fonts/OpenSans-Regular.ttf";
         $this->fonts['regular'] = TCPDF_FONTS::addTTFfont($fontpath, 'TrueTypeUnicode', '', 32);
 
         // Load the bold font
-        $fontpath = $CFG->dirroot . "/question/format/xhtml/fonts/OpenSans-Bold.ttf";
+        $fontpath = $CFG->dirroot . "/question/format/pdf/fonts/OpenSans-Bold.ttf";
         $this->fonts['bold'] = TCPDF_FONTS::addTTFfont($fontpath, 'TrueTypeUnicode', '', 32);
     }
 
+    /*  Print the question name for each question in the not_supported array of strings
+        
+    */
+    private function get_not_supported_str($arr) {
+        $str = "";
+        foreach ($arr as $question_name) {
+            $str .= "<strong>" . $question_name . "<br></strong> &#13;&#10;";
+        }
 
+        return $str;
+    }
 
     public function export_file_extension() {
         return '.pdf';

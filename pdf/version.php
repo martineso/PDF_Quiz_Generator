@@ -15,15 +15,16 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Strings for component 'qformat_xhtml', language 'en', branch 'MOODLE_20_STABLE'
+ * Version information for the calculated question type.
  *
- * @package    qformat_xhtml
- * @copyright  2010 Helen Foster
+ * @package    qformat_pdf
+ * @copyright  2011 The Open University
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-$string['student_name'] = 'Name: ';
-$string['date'] = 'Date: ' . date("Y-m-d");
-$string['pluginname'] = 'XHTML format';
-$string['pluginname_help'] = 'XHTML format enables all questions in the category to be exported to a single page of strict XHTML for possible use in another application.';
-$string['pluginname_link'] = 'qformat/xhtml';
+defined('MOODLE_INTERNAL') || die();
+
+$plugin->component = 'qformat_pdf';
+$plugin->version   = 2016120500;
+$plugin->requires  = 2016112900;
+$plugin->maturity  = MATURITY_STABLE;

@@ -10,7 +10,7 @@ define(['jquery', 'core/modal_factory', 'core/modal_events', 'core/templates'], 
         init: function(notSupportedArray) {
 
         		var notSupportedString = "";
-        		console.log(notSupportedArray);
+        		
         		for(var property in notSupportedArray) {
         			
         			if(notSupportedArray.hasOwnProperty(property)) {
@@ -19,11 +19,10 @@ define(['jquery', 'core/modal_factory', 'core/modal_events', 'core/templates'], 
         			}
         		}
 
-        		console.log(notSupportedString)
             var trigger = $('#modal');
             
             ModalFactory.create({
-							type: ModalFactory.types.CONFIRM,
+						type: ModalFactory.types.CONFIRM,
 					    title: 'Error!',
 					    body: "The following questions are not supported: </br>" 
 					    				+ notSupportedString + "</br>" 

@@ -25,7 +25,7 @@
 // $a is a list of questions passed by the print_error(...) function as a string
 $string['not_supported'] = 'There following questions are not supported: <br> {$a} Please check the question bank!';
 $string['student_name'] = 'Name: ';
-$string['date'] = 'Date: ' . date("Y-m-d");
+$string['date'] = 'Date: ';
 
 $string['pluginname'] = 'PDF format';
 $string['pluginname_help'] = 'PDF format enables all questions in the category to be exported to a single page of PDF for printing on a sheet of paper.';
